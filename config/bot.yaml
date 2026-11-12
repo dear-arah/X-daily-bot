@@ -1,0 +1,23 @@
+webhook_env: DISCORD_WEBHOOK_URL
+
+# Tried in order; a provider without its key is skipped. Free model names retire often.
+providers:
+  - {name: gemini, model: gemini-3.5-flash}
+  - {name: groq, model: openai/gpt-oss-120b}
+  - {name: github, model: openai/gpt-4.1-mini}
+
+# One type per run, in this order.
+rotation: [agora_news, build, tip, question, event]
+
+variants: 2
+max_age_days: 14
+brief_size: 10
+
+knowledge_dir: knowledge/agora-skills
+knowledge_budget_chars: 6000
+
+inbox_file: inbox/notes.md
+sources_file: config/sources.yaml
+persona_file: config/persona.md
+voice_file: config/voice.md
+context_file: config/agora-context.md
