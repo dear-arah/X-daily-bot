@@ -73,6 +73,9 @@ def fetch_feed(source: Source, get: Callable = requests.get, timeout: float = 15
                 group=source.group,
             )
         )
+    if source.must_match:
+        needles = [p.lower() for p in source.must_match]
+        items = [i for i in items if any(n in f"{i.title} {i.text} {i.url}".lower() for n in needles)]
     return items
 
 

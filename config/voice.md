@@ -7,7 +7,7 @@ What if filling up forms were hands-free?
 
 Building voice agents has never been easier. Thanks to Agora's Voice Agent SDK and Agora Skills, I was able to build GabAI.
 
-Check out my full article here: <link>
+Check out my full article here: https://example.com/gabai-article
 ---
 
-What makes it work: it opens with a question, says what the author built, and points to the full write-up. Match that tone; do not copy its wording.
+What makes it work: it opens with a question, says what the author built, and points to the full write-up. Match that tone; do not copy its wording. Always use the real link you are given in the request, or no link; never a placeholder.

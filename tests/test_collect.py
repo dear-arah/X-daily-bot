@@ -58,3 +58,20 @@ def test_placeholder_urls_are_skipped():
     sources = [Source("Mine", "https://dev.to/feed/<DEVTO_USERNAME>", "own")]
     assert collect_all(sources, get=get) == []
     assert calls == []
+
+
+def test_must_match_keeps_only_items_that_mention_a_pattern():
+    xml = (
+        b'<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>'
+        b"<item><title>Build with Agora.io RTC</title><link>https://e.com/1</link><description>a</description></item>"
+        b"<item><title>Agora Insights ECBA courses</title><link>https://e.com/2</link><description>b</description></item>"
+        b"</channel></rss>"
+    )
+    source = Source("Tag", "https://e.com/feed", "agora", must_match=("agora.io", "agoraio"))
+    items = fetch_feed(source, get=lambda url, **kw: Resp(xml))
+    assert [i.url for i in items] == ["https://e.com/1"]
+
+
+def test_no_must_match_keeps_everything():
+    items = fetch_feed(Source("Blog", "https://e.com/feed", "world"), get=_get_ok)
+    assert len(items) == 2

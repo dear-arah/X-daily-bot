@@ -67,6 +67,11 @@ def load_sources(path: Path) -> tuple[Source, ...]:
         if group not in GROUPS:
             raise ConfigError(f"{where}: group must be one of {', '.join(GROUPS)}, got {group!r}")
         sources.append(
-            Source(name=_require(entry, "name", where), url=_require(entry, "url", where), group=group)
+            Source(
+                name=_require(entry, "name", where),
+                url=_require(entry, "url", where),
+                group=group,
+                must_match=tuple(str(p) for p in entry.get("must_match") or ()),
+            )
         )
     return tuple(sources)

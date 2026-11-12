@@ -17,6 +17,7 @@ from xpost.llm.chain import FallbackChain
 from xpost.llm.providers import AllProvidersFailed
 from xpost.models import Draft, Item, Settings, Source
 from xpost.post import build_message, build_notice, send
+from xpost.resolve import resolve_url
 from xpost.rotation import pick_type
 from xpost.state import State, normalize_url
 
@@ -52,7 +53,8 @@ def _entry_candidate(entry: InboxEntry) -> _Candidate:
 
 
 def _item_candidate(item: Item) -> _Candidate:
-    return _Candidate(f"{item.title}\n{item.text}".strip(), (item.url,), (normalize_url(item.url),))
+    material = f"Source: {item.source}\n{item.title}\n{item.text}\nURL: {item.url}".strip()
+    return _Candidate(material, (item.url,), (normalize_url(item.url),))
 
 
 def _first(entries: Sequence[InboxEntry], *tags: str) -> InboxEntry | None:
@@ -96,6 +98,16 @@ def _candidates(
     return found
 
 
+def _with_resolved_links(candidate: _Candidate, resolve: Callable[[str], str]) -> _Candidate:
+    """Swap news-search redirect links for the publisher's own URL; the remembered keys stay as they were."""
+    material, urls = candidate.material, []
+    for url in candidate.urls:
+        real = resolve(url)
+        material = material.replace(url, real)
+        urls.append(real)
+    return _Candidate(material, tuple(urls), candidate.keys)
+
+
 def _notice(webhook_url: str | None, post: Callable, dry_run: bool, reason: str) -> str:
     text = f"No draft today: {reason}"
     if not dry_run and webhook_url:
@@ -115,6 +127,7 @@ def run_daily(
     dry_run: bool = False,
     force: bool = False,
     files_root: Path = Path("."),
+    resolve: Callable[[str], str] = resolve_url,
 ) -> RunResult:
     today = now.date()
     if state.drafted_today(today) and not force:
@@ -140,7 +153,7 @@ def run_daily(
     post_type = pick_type(state.last_type(), candidates.keys(), settings.rotation)
     if post_type is None:
         return RunResult("no_draft", None, _notice(webhook_url, post, dry_run, "no material for any post type"))
-    chosen = candidates[post_type]
+    chosen = _with_resolved_links(candidates[post_type], resolve)
 
     knowledge = "\n\n".join(
         part
@@ -160,6 +173,7 @@ def run_daily(
         brief,
         state.recent_whys(),
         settings.variants,
+        links=chosen.urls,
     )
     try:
         draft = generate(chain, post_type, chosen.urls, settings.variants, system, user)

@@ -114,3 +114,30 @@ def test_build_messages_has_instruction_for_every_type():
     for post_type in POST_TYPES:
         _, user = build_messages(post_type, "m", "p", "v", "c", "k", "", [], 2)
         assert TYPE_BRIEFS[post_type] in user
+
+
+@pytest.mark.parametrize("bad", ["Read it here <link>", "See <URL> now", "Check [link]", "by <your name>"])
+def test_parse_draft_rejects_placeholder_text(bad):
+    with pytest.raises(DraftError):
+        parse_draft(_raw([bad, "fine"]), 2)
+
+
+def test_parse_draft_allows_normal_angle_brackets():
+    variants, _ = parse_draft(_raw(["I <3 voice agents", "a < b and c > d"]), 2)
+    assert len(variants) == 2
+
+
+def test_build_messages_tells_model_which_link_to_use():
+    system, user = build_messages("agora_news", "m", "p", "v", "c", "k", "", [], 2, links=["https://agora.io/post"])
+    assert "https://agora.io/post" in user
+    assert "never write placeholders" in system.lower()
+
+
+def test_build_messages_says_no_link_when_none_given():
+    _, user = build_messages("tip", "m", "p", "v", "c", "k", "", [], 2)
+    assert "no link" in user.lower()
+
+
+def test_system_prompt_limits_claims_to_what_the_material_says():
+    system, _ = build_messages("agora_news", "m", "p", "v", "c", "k", "", [], 2)
+    assert "if the material is only a title" in system.lower()

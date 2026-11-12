@@ -12,6 +12,7 @@ class Source:
     name: str
     url: str
     group: str
+    must_match: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

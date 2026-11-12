@@ -4,7 +4,7 @@ from tests.helpers import FakeChain, Poster, Resp, make_settings, rss
 from xpost.llm.providers import AllProvidersFailed
 from xpost.models import Source
 from xpost.run import run_daily
-from xpost.state import State
+from xpost.state import State, normalize_url
 
 NOW = datetime(2026, 11, 13, 0, 27, tzinfo=timezone.utc)
 HOOK = "https://discord.test/hook"
@@ -56,6 +56,8 @@ def test_agora_news_falls_back_to_agora_feed_item(tmp_path):
     feeds = {"https://feed/agora": rss(("Agora ships thing", "https://agora.io/thing"))}
     result, state, chain, _ = _go(tmp_path, settings, sources=sources, feeds=feeds)
     assert result.post_type == "agora_news" and "Agora ships thing" in chain.calls[0][1]
+    assert "Source: Agora blog" in chain.calls[0][1]
+    assert "https://agora.io/thing" in chain.calls[0][1]
     assert State(tmp_path / "state.json").is_seen("https://agora.io/thing")
 
 
@@ -154,3 +156,26 @@ def test_empty_and_malformed_inbox_is_fine(tmp_path):
         sub.mkdir()
         result, *_ = _go(sub, make_settings(sub, inbox=text))
         assert result.status == "posted", text
+
+
+def test_google_news_link_is_resolved_before_it_reaches_the_prompt_and_draft(tmp_path):
+    google = "https://news.google.com/rss/articles/CBMiabc?oc=5"
+    sources = [Source("agora.io (news search)", "https://feed/agora", "agora")]
+    feeds = {"https://feed/agora": rss(("Agora docs guide", google))}
+    settings = make_settings(tmp_path)
+    state = State(tmp_path / "state.json")
+    chain, poster = FakeChain(), Poster()
+
+    def get(url, **kw):
+        return Resp(feeds[url]) if url in feeds else Resp(status=404)
+
+    result = run_daily(
+        settings, sources, state, chain, NOW, HOOK, get=get, post=poster, files_root=tmp_path,
+        resolve=lambda url: "https://docs.agora.io/real-page",
+    )
+    assert result.status == "posted"
+    user = chain.calls[0][1]
+    assert "https://docs.agora.io/real-page" in user and "news.google.com" not in user
+    assert "https://docs.agora.io/real-page" in poster.bodies[0]["embeds"][0]["description"]
+    # the original link is what gets remembered, so the same item is never drafted twice
+    assert State(tmp_path / "state.json").is_seen(normalize_url(google))

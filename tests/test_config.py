@@ -65,3 +65,13 @@ def test_load_sources_returns_sources_in_file_order(tmp_path):
     )
     sources = load_sources(path)
     assert [(s.name, s.group) for s in sources] == [("A", "agora"), ("B", "world")]
+
+
+def test_load_sources_reads_must_match(tmp_path):
+    path = _write(
+        tmp_path,
+        "sources:\n  - {name: A, url: 'http://a', group: agora, must_match: [agora.io, agoraio]}\n  - {name: B, url: 'http://b', group: world}\n",
+        "s.yaml",
+    )
+    a, b = load_sources(path)
+    assert a.must_match == ("agora.io", "agoraio") and b.must_match == ()

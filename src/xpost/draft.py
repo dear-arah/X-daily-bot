@@ -13,12 +13,14 @@ URL_WEIGHT = 23
 CREATIVE_TEMPERATURE = 0.8
 
 _URL = re.compile(r"https?://\S+")
+_PLACEHOLDER = re.compile(r"<[A-Za-z][^<>]{0,40}>|\[(?:link|url|article|your [^\]]{1,30})\]", re.IGNORECASE)
 _SINGLE_WEIGHT = ((0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037))
 
 TYPE_BRIEFS = {
     "agora_news": (
-        "Post type: Saw this from Agora. Share something Agora announced or published, as a developer who noticed it. "
-        "Say why it matters to people building with it. Do not repeat the source's wording."
+        "Post type: Saw this from Agora. Share something Agora or its developer community published or announced, "
+        "as a developer who noticed it. Attribute it accurately to the source named in the material; never call a "
+        "community post Agora's own. Say why it matters to people building with it. Do not repeat the source's wording."
     ),
     "build": (
         "Post type: Build in public. Turn the material (the user's own build, article or note) into a first-person "
@@ -44,7 +46,9 @@ _SYSTEM = """{persona}
 
 Rules:
 - Use only facts present in the material and the Agora knowledge below. Never invent product capabilities, dates or numbers.
+- If the material is only a title or a short snippet, say only what that supports: no extra numbers, limits, versions or benefits.
 - Write as the user, in first person. Never copy the source's wording: add an opinion, a reason a developer should care, or a question.
+- Never write placeholders such as <link> or [url]; use the real link you are given, or no link.
 - At most one hashtag, and only if it helps. No emoji walls.
 - Each variant must be at most {limit} characters (a link counts as 23). The two variants must take different angles.
 - Avoid repeating these recent angles:
@@ -83,6 +87,7 @@ def build_messages(
     brief: str,
     recent_whys: Sequence[str],
     variants: int,
+    links: Sequence[str] = (),
 ) -> tuple[str, str]:
     recent = "\n".join(f"  - {w}" for w in recent_whys) or "  (none yet)"
     system = _SYSTEM.format(
@@ -94,8 +99,13 @@ def build_messages(
         context=context.strip(),
         knowledge=knowledge.strip() or "(not available today)",
     )
+    link_line = (
+        f"Link to include, exactly as written, once: {' '.join(links)}"
+        if links
+        else "There is no link for this post: do not add one."
+    )
     user = (
-        f"{TYPE_BRIEFS[post_type]}\n\n"
+        f"{TYPE_BRIEFS[post_type]}\n{link_line}\n\n"
         f"Material:\n{material.strip() or '(none; use the news below)'}\n\n"
         f"What is happening in tech this week:\n{brief.strip() or '(nothing notable)'}"
     )
@@ -120,6 +130,8 @@ def parse_draft(raw: str, variants: int) -> tuple[tuple[str, ...], str]:
         raise DraftError(f"expected {variants} non-empty variants")
     if not isinstance(why, str) or not why.strip():
         raise DraftError("missing 'why'")
+    if any(_PLACEHOLDER.search(t) for t in texts):
+        raise DraftError("variant contains placeholder text")
     return tuple(t.strip() for t in texts), why.strip()
 
 
