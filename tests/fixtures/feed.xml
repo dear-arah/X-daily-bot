@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Test</title>
+<item><title>Voice agents ship &amp; scale</title><link>https://example.com/a</link>
+<description>&lt;p&gt;First &lt;b&gt;post&lt;/b&gt; body&lt;/p&gt;</description>
+<pubDate>Wed, 11 Nov 2026 10:00:00 GMT</pubDate></item>
+<item><title>v1.2.3</title><link>https://example.com/b</link>
+<description>Release notes</description>
+<pubDate>Tue, 10 Nov 2026 10:00:00 GMT</pubDate></item>
+<item><title>No link here</title><description>skip me</description></item>
+</channel></rss>
