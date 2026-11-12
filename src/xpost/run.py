@@ -150,7 +150,10 @@ def run_daily(
 
     knowledge_root = root / settings.knowledge_dir
     candidates = _candidates(settings, state, entries, fresh, brief, knowledge_root)
-    post_type = pick_type(state.last_type(), candidates.keys(), settings.rotation)
+    if "event" in settings.rotation and "event" in candidates and state.last_type() != "event":
+        post_type = "event"  # a reminder must go out before the event, so it skips the queue
+    else:
+        post_type = pick_type(state.last_type(), candidates.keys(), settings.rotation)
     if post_type is None:
         return RunResult("no_draft", None, _notice(webhook_url, post, dry_run, "no material for any post type"))
     chosen = _with_resolved_links(candidates[post_type], resolve)

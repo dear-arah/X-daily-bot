@@ -93,3 +93,15 @@ def test_send_returns_false_when_retry_also_rate_limited():
 def test_send_returns_false_on_failure():
     assert send("https://hook", {}, post=ScriptedPost(FakeResponse(500)), sleep=lambda s: None) is False
     assert send("https://hook", {}, post=ScriptedPost(TimeoutError("slow")), sleep=lambda s: None) is False
+
+
+class HtmlBody(FakeResponse):
+    def json(self):
+        raise ValueError("not json")
+
+
+def test_send_survives_a_429_with_a_non_json_body():
+    post = ScriptedPost(HtmlBody(429), FakeResponse(204))
+    sleeps = []
+    assert send("https://hook", {"content": "hi"}, post=post, sleep=sleeps.append) is True
+    assert sleeps == [1.0]

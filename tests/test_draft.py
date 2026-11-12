@@ -141,3 +141,18 @@ def test_build_messages_says_no_link_when_none_given():
 def test_system_prompt_limits_claims_to_what_the_material_says():
     system, _ = build_messages("agora_news", "m", "p", "v", "c", "k", "", [], 2)
     assert "if the material is only a title" in system.lower()
+
+
+def test_tweet_length_counts_bare_domains_as_links():
+    assert tweet_length("see agora.io") == 4 + 23
+    assert tweet_length("a docs.agora.io/en/rtc?x=1") == 2 + 23
+
+
+def test_tweet_length_does_not_treat_code_names_as_domains():
+    assert tweet_length("Next.js and index.html") == len("Next.js and index.html")
+
+
+@pytest.mark.parametrize("code", ["Wrap your app in <AgoraRTCProvider> first", "Use a <video> element", "<Button> works"])
+def test_parse_draft_allows_code_tags(code):
+    variants, _ = parse_draft(_raw([code, "fine"]), 2)
+    assert variants[0] == code

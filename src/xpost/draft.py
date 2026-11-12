@@ -13,7 +13,16 @@ URL_WEIGHT = 23
 CREATIVE_TEMPERATURE = 0.8
 
 _URL = re.compile(r"https?://\S+")
-_PLACEHOLDER = re.compile(r"<[A-Za-z][^<>]{0,40}>|\[(?:link|url|article|your [^\]]{1,30})\]", re.IGNORECASE)
+_DOMAIN = re.compile(
+    r"\b(?:[a-z0-9-]+\.)+(?:com|org|net|io|ai|dev|app|co|me|ly|gg|tv|xyz|tech|cloud|so|sh|to|us|uk|de|fr|in|edu|gov|info|blog|page|site)\b(?:/\S*)?",
+    re.IGNORECASE,
+)
+# Only words that are clearly fill-in-the-blank; real code tags such as <video> or <AgoraRTCProvider> are fine.
+_PLACEHOLDER = re.compile(
+    r"<\s*(?:link|url|article|post|name|title|your\b[^<>]{0,30}|insert\b[^<>]{0,30})\s*>"
+    r"|\[(?:link|url|article|your [^\]]{1,30})\]",
+    re.IGNORECASE,
+)
 _SINGLE_WEIGHT = ((0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037))
 
 TYPE_BRIEFS = {
@@ -69,6 +78,8 @@ class DraftError(ValueError):
 def tweet_length(text: str) -> int:
     urls = _URL.findall(text)
     rest = _URL.sub("", text)
+    urls += _DOMAIN.findall(rest)  # X also shortens bare domains such as agora.io
+    rest = _DOMAIN.sub("", rest)
     weight = sum(1 if any(lo <= ord(c) <= hi for lo, hi in _SINGLE_WEIGHT) else 2 for c in rest)
     return weight + URL_WEIGHT * len(urls)
 

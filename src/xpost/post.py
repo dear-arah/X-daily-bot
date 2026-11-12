@@ -69,7 +69,10 @@ def send(
         if 200 <= response.status_code < 300:
             return True
         if response.status_code == 429 and attempt == 0:
-            wait = float(response.json().get("retry_after", 1))
+            try:
+                wait = float(response.json().get("retry_after", 1))
+            except Exception:  # an HTML 429 from a proxy has no JSON body
+                wait = 1.0
             sleep(min(wait, MAX_RETRY_WAIT))
             continue
         log.warning("discord returned HTTP %s", response.status_code)

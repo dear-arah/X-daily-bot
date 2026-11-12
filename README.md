@@ -60,5 +60,6 @@ sh scripts/sync-agora-skills.sh knowledge/agora-skills
 ## Notes
 
 - Processed material is remembered in a `state` branch that the workflow maintains. Do not edit it by hand.
-- GitHub pauses scheduled workflows in repositories with no activity for 60 days. The `keepalive` workflow re-enables the schedule weekly.
+- GitHub pauses scheduled workflows in a repository with no commits for 60 days (and a paused repository cannot re-enable itself). Adding entries to `inbox/notes.md` is a commit, so normal use keeps the schedule alive. If drafts stop, open the Actions tab and re-enable the `draft` workflow.
+- If Discord accepts a post but saving the state fails afterwards, the run shows as failed and the next run may draft from the same material again.
 - Keep the repository public if you want unlimited Actions minutes. A weekday run uses well under a minute.

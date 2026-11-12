@@ -179,3 +179,27 @@ def test_google_news_link_is_resolved_before_it_reaches_the_prompt_and_draft(tmp
     assert "https://docs.agora.io/real-page" in poster.bodies[0]["embeds"][0]["description"]
     # the original link is what gets remembered, so the same item is never drafted twice
     assert State(tmp_path / "state.json").is_seen(normalize_url(google))
+
+
+def test_event_entry_jumps_the_queue_so_the_reminder_is_not_late(tmp_path):
+    settings = make_settings(tmp_path, inbox="[event]\nWebinar on voice agents https://agora.io/w\n")
+    state = State(tmp_path / "state.json")
+    from xpost.models import Draft
+    from datetime import date
+
+    state.record(Draft("tip", ("a", "b"), "w", ()), [], date(2026, 11, 12))  # rotation would say: question next
+    state.save()
+    result, *_ = _go(tmp_path, settings)
+    assert result.post_type == "event"
+
+
+def test_event_does_not_repeat_back_to_back(tmp_path):
+    settings = make_settings(tmp_path, inbox="[event]\nSecond webinar https://agora.io/w2\n")
+    state = State(tmp_path / "state.json")
+    from xpost.models import Draft
+    from datetime import date
+
+    state.record(Draft("event", ("a", "b"), "w", ()), ["old"], date(2026, 11, 12))
+    state.save()
+    result, *_ = _go(tmp_path, settings)
+    assert result.post_type != "event"
