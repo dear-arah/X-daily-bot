@@ -12,9 +12,8 @@ sources:
   - {name: "agora.io (news search)", url: "https://news.google.com/rss/search?q=site:agora.io+when:14d&hl=en-US&gl=US&ceid=US:en", group: agora}
 
   # --- Your own articles ---
-  # Replace the two placeholders with your usernames. A feed that still contains < > is skipped.
-  - {name: "My dev.to articles", url: "https://dev.to/feed/<DEVTO_USERNAME>", group: own}
-  - {name: "My Medium articles", url: "https://medium.com/feed/@<MEDIUM_USERNAME>", group: own}
+  - {name: "My dev.to articles", url: "https://dev.to/feed/dear-arah", group: own}
+  - {name: "My Medium articles", url: "https://medium.com/feed/@dearahmbarsolasco", group: own}
 
   # --- Tech, AI and developer ecosystem ---
   - {name: "OpenAI News", url: "https://openai.com/news/rss.xml", group: world}
