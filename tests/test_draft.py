@@ -156,3 +156,29 @@ def test_tweet_length_does_not_treat_code_names_as_domains():
 def test_parse_draft_allows_code_tags(code):
     variants, _ = parse_draft(_raw([code, "fine"]), 2)
     assert variants[0] == code
+
+
+def _gen(variants, allowed):
+    chain = FakeChain([_raw(variants)])
+    return generate(chain, "agora_news", allowed, 2, "sys", "user")
+
+
+def test_generate_rejects_a_link_the_model_was_not_given():
+    with pytest.raises(DraftError):
+        _gen(["Read https://www.agora.io/en/success-stories/lola/ now", "ok"], ["https://docs.agora.io/real"])
+
+
+def test_generate_accepts_the_given_link_even_with_trailing_punctuation_and_www():
+    draft = _gen(["See https://www.docs.agora.io/real.", "Also https://docs.agora.io/real/?utm_source=x"], ["https://docs.agora.io/real"])
+    assert len(draft.variants) == 2
+
+
+def test_generate_rejects_any_link_when_none_were_given():
+    with pytest.raises(DraftError):
+        _gen(["Try https://example.com/x", "ok"], [])
+
+
+def test_generate_rejects_an_invented_bare_domain_path_but_allows_a_bare_domain():
+    with pytest.raises(DraftError):
+        _gen(["see agora.io/en/made-up", "ok"], [])
+    assert len(_gen(["we use agora.io daily", "ok"], []).variants) == 2

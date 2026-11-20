@@ -14,6 +14,14 @@ The bot rotates through five post types, one per day:
 
 If a type has nothing to work from that day (for example no event in the inbox), the bot moves on to the next type. The model never copies a source's wording; it adds a take, a reason to care, or a question. Each draft says why that angle should start replies and lists its sources, so you can check facts before posting.
 
+## How links are checked
+
+- Before drafting, the bot opens the link of the material it picked, three times in a row. If any try returns 404 or 410, it skips that item and uses the next one (or another post type). Some pages open only part of the time, which gives your readers a 404 too, so they are treated as dead.
+- The model is given the page's real text (title, description and main paragraphs), not just a headline, so it has facts to work from.
+- A draft may only contain the link the bot gave the model. Any other link, including one the model made up, is rejected and the run ends with a "No draft today" message.
+- Sites that block automated requests (403, 429) are not treated as dead, so those links are kept but cannot be checked. Always click the link in the draft before you post.
+- Headlines from the unchecked search feed are not used as general context for the model.
+
 ## Where the bot gets its material
 
 - **The inbox** (`inbox/notes.md`): paste things you want posted about. Entries are separated by a line with only `---` and can start with a tag: `[linkedin]` (an Agora LinkedIn post, text and/or link), `[event]`, `[built]` or `[note]`. Each entry is used once. You can edit this file from the GitHub mobile app.

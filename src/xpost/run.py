@@ -20,9 +20,11 @@ from xpost.post import build_message, build_notice, send
 from xpost.resolve import resolve_url
 from xpost.rotation import pick_type
 from xpost.state import State, normalize_url
+from xpost.verify import PageCheck, check_url
 
 log = logging.getLogger(__name__)
 
+MAX_TRIES = 5  # links opened per post type before giving up on that type
 TIP_QUERY = "voice agent conversational real-time developers build"
 
 
@@ -38,6 +40,7 @@ class _Candidate:
     material: str
     urls: tuple[str, ...]
     keys: tuple[str, ...]
+    from_feed: bool = False  # a feed item usually carries only a title, so the page text is fetched for it
 
 
 def format_plain(draft: Draft, today) -> str:
@@ -54,7 +57,7 @@ def _entry_candidate(entry: InboxEntry) -> _Candidate:
 
 def _item_candidate(item: Item) -> _Candidate:
     material = f"Source: {item.source}\n{item.title}\n{item.text}\nURL: {item.url}".strip()
-    return _Candidate(material, (item.url,), (normalize_url(item.url),))
+    return _Candidate(material, (item.url,), (normalize_url(item.url),), from_feed=True)
 
 
 def _first(entries: Sequence[InboxEntry], *tags: str) -> InboxEntry | None:
@@ -68,44 +71,57 @@ def _candidates(
     items: Sequence[Item],
     brief: str,
     knowledge_root: Path,
-) -> dict[str, _Candidate]:
-    found: dict[str, _Candidate] = {}
+) -> dict[str, list[_Candidate]]:
+    """Per post type, the usable material in order of preference (the inbox first, then feeds)."""
 
-    def newest(group: str) -> Item | None:
-        return next((i for i in items if i.group == group), None)
+    def from_entries(*tags: str) -> list[_Candidate]:
+        return [_entry_candidate(e) for e in entries if e.tag in tags]
 
-    entry, item = _first(entries, "linkedin"), newest("agora")
-    if entry or item:
-        found["agora_news"] = _entry_candidate(entry) if entry else _item_candidate(item)
+    def from_group(group: str) -> list[_Candidate]:
+        return [_item_candidate(i) for i in items if i.group == group]
 
-    entry, item = _first(entries, "built", "note"), newest("own")
-    if entry or item:
-        found["build"] = _entry_candidate(entry) if entry else _item_candidate(item)
+    found: dict[str, list[_Candidate]] = {
+        "agora_news": from_entries("linkedin") + from_group("agora"),
+        "build": from_entries("built", "note") + from_group("own"),
+        "event": from_entries("event"),
+    }
 
     topics = {t.key: t for t in list_topics(knowledge_root)}
     exclude = {key for key in topics if state.is_seen(f"topic:{key}")}
     _, keys = pick_relevant(knowledge_root, f"{TIP_QUERY} {brief}", settings.knowledge_budget_chars, exclude)
     if keys:
         text = load_topic_text(topics[keys[0]], settings.knowledge_budget_chars)
-        found["tip"] = _Candidate(text, (), (f"topic:{keys[0]}",))
+        found["tip"] = [_Candidate(text, (), (f"topic:{keys[0]}",))]
 
     top_line = brief.splitlines()[0] if brief else ""
-    found["question"] = _Candidate(top_line, (), ())
-
-    entry = _first(entries, "event")
-    if entry:
-        found["event"] = _entry_candidate(entry)
-    return found
+    found["question"] = [_Candidate(top_line, (), ())]
+    return {t: c[:MAX_TRIES] for t, c in found.items() if c}
 
 
-def _with_resolved_links(candidate: _Candidate, resolve: Callable[[str], str]) -> _Candidate:
-    """Swap news-search redirect links for the publisher's own URL; the remembered keys stay as they were."""
-    material, urls = candidate.material, []
-    for url in candidate.urls:
-        real = resolve(url)
-        material = material.replace(url, real)
-        urls.append(real)
-    return _Candidate(material, tuple(urls), candidate.keys)
+def _first_live(
+    candidates: Sequence[_Candidate], resolve: Callable[[str], str], check: Callable[[str], PageCheck]
+) -> _Candidate | None:
+    """The first candidate whose links all open. Redirect links become the publisher's URL, and a feed
+    item gets the page's real text so the model is not left to guess from a title."""
+    for candidate in candidates:
+        material, urls, page, dead = candidate.material, [], "", False
+        for url in candidate.urls:
+            real = resolve(url)
+            result = check(real)
+            if result.status == "dead":
+                log.warning("skipping %s: the link does not open (404/410)", real)
+                dead = True
+                break
+            final = result.final_url if result.status == "ok" else real
+            material = material.replace(url, final)
+            urls.append(final)
+            page = page or result.text
+        if dead:
+            continue
+        if candidate.from_feed and page:
+            material = f"{material}\nPage text: {page}"
+        return _Candidate(material, tuple(urls), candidate.keys, candidate.from_feed)
+    return None
 
 
 def _notice(webhook_url: str | None, post: Callable, dry_run: bool, reason: str) -> str:
@@ -128,6 +144,7 @@ def run_daily(
     force: bool = False,
     files_root: Path = Path("."),
     resolve: Callable[[str], str] = resolve_url,
+    check: Callable[[str], PageCheck] = check_url,
 ) -> RunResult:
     today = now.date()
     if state.drafted_today(today) and not force:
@@ -150,13 +167,19 @@ def run_daily(
 
     knowledge_root = root / settings.knowledge_dir
     candidates = _candidates(settings, state, entries, fresh, brief, knowledge_root)
-    if "event" in settings.rotation and "event" in candidates and state.last_type() != "event":
-        post_type = "event"  # a reminder must go out before the event, so it skips the queue
-    else:
-        post_type = pick_type(state.last_type(), candidates.keys(), settings.rotation)
-    if post_type is None:
-        return RunResult("no_draft", None, _notice(webhook_url, post, dry_run, "no material for any post type"))
-    chosen = _with_resolved_links(candidates[post_type], resolve)
+    chosen = post_type = None
+    while chosen is None:
+        if not candidates:
+            return RunResult("no_draft", None, _notice(webhook_url, post, dry_run, "no usable material for any post type"))
+        if "event" in settings.rotation and "event" in candidates and state.last_type() != "event":
+            post_type = "event"  # a reminder must go out before the event, so it skips the queue
+        else:
+            post_type = pick_type(state.last_type(), candidates.keys(), settings.rotation)
+        if post_type is None:
+            return RunResult("no_draft", None, _notice(webhook_url, post, dry_run, "no usable material for any post type"))
+        chosen = _first_live(candidates[post_type], resolve, check)
+        if chosen is None:
+            del candidates[post_type]  # every link of this type was dead; try another type
 
     knowledge = "\n\n".join(
         part

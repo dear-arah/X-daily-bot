@@ -7,7 +7,7 @@ from typing import Sequence
 from xpost.models import Item
 
 _NON_ALNUM = re.compile(r"[^a-z0-9]")
-_BRIEF_GROUPS = ("world", "agora")
+_BRIEF_GROUPS = ("world",)  # search-index items are unchecked, so they stay out of the context
 
 
 def build_brief(items: Sequence[Item], now: datetime, max_age_days: int, size: int) -> str:

@@ -26,10 +26,10 @@ def test_brief_drops_old_and_duplicate_titles():
     assert "stale" not in brief
 
 
-def test_brief_excludes_own_group():
-    items = [_item("mine", 1, group="own"), _item("agora thing", 1, group="agora")]
+def test_brief_uses_only_publisher_feeds_not_own_or_unchecked_agora_search_items():
+    items = [_item("mine", 1, group="own"), _item("agora thing", 1, group="agora"), _item("world news", 1)]
     brief = build_brief(items, NOW, max_age_days=14, size=10)
-    assert "mine" not in brief and "agora thing" in brief
+    assert "mine" not in brief and "agora thing" not in brief and "world news" in brief
 
 
 def test_brief_empty_when_nothing_qualifies():

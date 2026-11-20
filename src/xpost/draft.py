@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 from xpost.llm.chain import FallbackChain
 from xpost.models import Draft
+from xpost.state import normalize_url
 
 MAX_WEIGHT = 280
 URL_WEIGHT = 23
@@ -88,6 +89,19 @@ def intent_url(text: str) -> str:
     return "https://x.com/intent/tweet?text=" + quote(text, safe="")
 
 
+def _link_key(url: str) -> str:
+    return normalize_url(url).split("://", 1)[-1]
+
+
+def unlisted_links(text: str, allowed: Sequence[str]) -> list[str]:
+    """Links in `text` that are not among the `allowed` ones. A bare domain such as agora.io is fine;
+    anything with a path must be a link the model was given."""
+    allowed_keys = {_link_key(u) for u in allowed}
+    found = [u.rstrip(").,;:!?\"'") for u in _URL.findall(text)]
+    found += ["https://" + m.rstrip(").,;:!?\"'") for m in _DOMAIN.findall(_URL.sub("", text)) if "/" in m]
+    return [u for u in found if _link_key(u) not in allowed_keys]
+
+
 def build_messages(
     post_type: str,
     material: str,
@@ -158,7 +172,12 @@ def generate(
     system: str,
     user: str,
 ) -> Draft:
-    parse = lambda raw: parse_draft(raw, variants)  # noqa: E731
+    def parse(raw: str) -> tuple[tuple[str, ...], str]:
+        texts, why = parse_draft(raw, variants)
+        if any(unlisted_links(t, source_urls) for t in texts):
+            raise DraftError("a variant has a link that was not provided")
+        return texts, why
+
     texts, why = chain.complete(system, user, parse=parse, temperature=CREATIVE_TEMPERATURE)
     over = _too_long(texts)
     if over:
