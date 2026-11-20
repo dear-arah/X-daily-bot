@@ -1,0 +1,50 @@
+{
+  "drafts": [
+    {
+      "date": "2026-11-13",
+      "keys": [
+        "https://news.google.com/rss/articles/CBMilwFBVV95cUxQejAwNUI0bVNIVnEzZV9zNnNfckVOMDloNmVTdjFud1BHTTJMQTZLbHIzLVo0ODliRlEzYno4MmlXUVpvRnMxV0xOV0ZKQU96M25QM2RiQ2R5UGp2VG9BNDBiV2RuVVJRNTFUQVA3MmhUZ01jazN1MFA2eFpUdno0X2xacVJvRU80d1Y5YkVQYlo2ajNPdWNF?oc=5"
+      ],
+      "type": "agora_news",
+      "why": "Both posts invite developers to discuss their own binary\u2011size pain points, encouraging replies and experimentation with the guide."
+    },
+    {
+      "date": "2026-11-16",
+      "keys": [
+        "https://dev.to/dear-arah/talk-to-the-web-building-a-hands-free-form-assistant-with-agora-voice-agent-sdk-5fh6"
+      ],
+      "type": "build",
+      "why": "These angles spark engagement by framing voice AI as a practical web accessibility tool and highlighting how modern SDKs make it easy to revive unfinished hackathon projects."
+    },
+    {
+      "date": "2026-11-17",
+      "keys": [
+        "topic:conversational-ai/README.md"
+      ],
+      "type": "tip",
+      "why": "Both prompts ask developers about their setup steps or missing pieces, encouraging them to share experiences and ask follow\u2011up questions."
+    },
+    {
+      "date": "2026-11-18",
+      "keys": [],
+      "type": "question",
+      "why": "These angles spark developer engagement by tapping into shared career experiences and asking a direct architecture question about local versus cloud voice AI implementations."
+    },
+    {
+      "date": "2026-11-19",
+      "keys": [
+        "https://news.google.com/rss/articles/CBMiWEFVX3lxTFBHZk9vSURoUnJEcGZPRXVKVGFud2tDN1hvTWJqNHBGa1VzNjdEZlBSSFNlOFU4VTc2VWIxekdvZVdMQUZfMHdHbWFLaVNjX0pYR3Bqc3pHZlY?oc=5"
+      ],
+      "type": "agora_news",
+      "why": "Both posts pose a specific technical question that encourages developers to share their own implementation details and challenges."
+    },
+    {
+      "date": "2026-11-20",
+      "keys": [
+        "topic:conversational-ai/quickstarts.md"
+      ],
+      "type": "tip",
+      "why": "Highlighting concrete env and runtime quirks gives developers immediate practical value while opening the floor for them to share their own framework setup papercuts."
+    }
+  ]
+}
